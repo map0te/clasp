@@ -372,6 +372,11 @@ public:
 
 	//! Returns an object for adding theory data to this program.
 	TheoryData&   theoryData();
+
+	LogicProgram& addDepthBinding(uint32 node, int depth, Atom_t atom, const Potassco::LitSpan& condition) {
+		return addDepthBinding(node, depth, atom, newCondition(condition));
+	}
+	LogicProgram& addDepthBinding(uint32 node, int depth, Atom_t atom, Id_t cond);
 	//@}
 
 	/*!
@@ -526,6 +531,7 @@ private:
 	LogicProgram& operator=(const LogicProgram&);
 	struct DlpTr;
 	struct AcycArc { Id_t cond; uint32 node[2]; };
+	struct DepthNode {Id_t cond; uint32 node; int32 depth; Atom_t atom; };
 	struct DomRule { uint32 atom : 29; uint32 type : 3; Id_t cond; int16 bias; uint16 prio; };
 	struct Eq      { Atom_t var; Literal lit; };
 	struct TFilter { bool operator()(const Potassco::TheoryAtom& atom) const; LogicProgram* self; };
@@ -536,6 +542,7 @@ private:
 	typedef PodVector<ShowPair>::type       ShowVec;
 	typedef PodVector<DomRule>::type        DomRules;
 	typedef PodVector<AcycArc>::type        AcycRules;
+	typedef PodVector<DepthNode>::type		DepthRules;
 	typedef PodVector<RuleBuilder*>::type   RuleList;
 	typedef PodVector<Min*>::type           MinList;
 	typedef PodVector<uint8>::type          SccMap;
@@ -607,6 +614,7 @@ private:
 	void prepareComponents();
 	bool addConstraints();
 	void addAcycConstraint();
+	void addDepthConstraint();
 	void addDomRules();
 	void freezeAssumptions();
 	// ------------------------------------------------------------------------

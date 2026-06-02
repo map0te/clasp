@@ -604,6 +604,7 @@ public:
 	typedef PodVector<Solver*>::type       SolverVec;
 	typedef SingleOwnerPtr<PrgDepGraph>    SccGraph;
 	typedef SingleOwnerPtr<ExtDepGraph>    ExtGraph;
+	typedef SingleOwnerPtr<DepthBindings>  DepthInfo;
 	typedef Configuration*                 ConfigPtr;
 	typedef SingleOwnerPtr<Distributor>    DistrPtr;
 	typedef const ProblemStats&            StatsCRef;
@@ -662,6 +663,7 @@ public:
 	SatPrePtr  satPrepro;  /*!< Preprocessor for simplifying the problem.              */
 	SccGraph   sccGraph;   /*!< Program dependency graph - only used for ASP-problems. */
 	ExtGraph   extGraph;   /*!< External dependency graph - given by user.             */
+	DepthInfo  depthInfo;
 
 	//! Returns the current configuration used in this object.
 	ConfigPtr  configuration()      const { return config_.get(); }

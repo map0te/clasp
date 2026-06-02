@@ -57,6 +57,7 @@ class ProgramParser;
 class SatBuilder;
 class PBBuilder;
 class ExtDepGraph;
+class DepthBindings;
 class ConstString;
 typedef Potassco::Span<char> StrView;
 typedef Potassco::Heuristic_t DomModType;

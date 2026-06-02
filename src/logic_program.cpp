@@ -29,6 +29,7 @@
 #include <clasp/asp_preprocessor.h>
 #include <clasp/clause.h>
 #include <clasp/dependency_graph.h>
+#include <clasp/depth.h>
 #include <clasp/parser.h>
 #include <potassco/theory_data.h>
 #include <potassco/string_convert.h>
@@ -207,12 +208,13 @@ typedef POTASSCO_EXT_NS::unordered_multimap<uint32, uint32> IndexMap;
 typedef IndexMap::iterator              IndexIter;
 typedef std::pair<IndexIter, IndexIter> IndexRange;
 struct LogicProgram::Aux {
-	AtomList  scc;          // atoms that are strongly connected
-	DomRules  dom;          // list of domain heuristic directives
-	AcycRules acyc;         // list of user-defined edges for acyclicity check
-	VarVec    project;      // atoms in projection directives
-	VarVec    external;     // atoms in external directives
-	IdSet     skippedHeads; // heads of rules that have been removed during parsing
+	AtomList  	scc;          // atoms that are strongly connected
+	DomRules  	dom;          // list of domain heuristic directives
+	AcycRules 	acyc;         // list of user-defined edges for acyclicity check
+	DepthRules	depth;
+	VarVec    	project;      // atoms in projection directives
+	VarVec    	external;     // atoms in external directives
+	IdSet     	skippedHeads; // heads of rules that have been removed during parsing
 };
 
 struct LogicProgram::IndexData {
@@ -385,6 +387,7 @@ bool LogicProgram::doEndProgram() {
 		addConstraints();
 		addDomRules();
 		addAcycConstraint();
+		addDepthConstraint();
 	}
 	return ctx()->ok();
 }
@@ -719,6 +722,7 @@ bool LogicProgram::supportsSmodels() const {
 	if (incData_ || theory_)        { return false; }
 	if (!auxData_->dom.empty())     { return false; }
 	if (!auxData_->acyc.empty())    { return false; }
+	if (!auxData_->depth.empty())   { return false; }
 	if (!assume_.empty())           { return false; }
 	if (!auxData_->project.empty()) { return false; }
 	for (ShowVec::const_iterator it = show_.begin(), end = show_.end(); it != end; ++it) {
@@ -761,6 +765,16 @@ LogicProgram& LogicProgram::addAcycEdge(uint32 n1, uint32 n2, Id_t condId) {
 		auxData_->acyc.push_back(arc);
 	}
 	upStat(RK(Acyc), 1);
+	return *this;
+}
+
+LogicProgram& LogicProgram::addDepthBinding(uint32 node, int depth, Atom_t atom, Id_t condId) {
+	check_not_frozen();
+	if (condId != falseId && atom != 0) {
+		DepthNode depthNode = { condId, node, static_cast<int32>(depth), atom };
+		auxData_->depth.push_back(depthNode);
+		resize(atom);
+	}
 	return *this;
 }
 
@@ -1755,6 +1769,24 @@ void LogicProgram::addAcycConstraint() {
 		}
 	}
 	if (graph->finalize(ctx) == 0) { ctx.extGraph = 0; }
+}
+
+void LogicProgram::addDepthConstraint() {
+	DepthRules& depth = auxData_->depth;
+	if (depth.empty()) { return; }
+	SharedContext& ctx = *this->ctx();
+	if (!ctx.extGraph.get()) { return; }
+	const Solver& s = *ctx.master();
+	DepthBindings* data = new DepthBindings();
+	for (DepthRules::const_iterator it = depth.begin(); it != depth.end(); ++it) {
+		Literal cond = getLiteral(it->cond);
+		Literal lit  = getLiteral(it->atom);
+		if (s.isFalse(cond)) { continue; }
+		data->add(it->node, it->depth, lit);
+		if (lit.var() != 0) { ctx.setFrozen(lit.var(), true); }
+	}
+	if (data->empty()) { delete data; return; }
+	ctx.depthInfo = data;
 }
 #undef check_modular
 /////////////////////////////////////////////////////////////////////////////////////////

@@ -57,6 +57,7 @@ set(header
 	${header_path}/satelite.h
 	${header_path}/program_builder.h
 	${header_path}/dependency_graph.h
+	${header_path}/depth.h
 	${header_path}/clause.h
 	${header_path}/cb_enumerator.h
 	${header_path}/minimize_constraint.h
@@ -99,6 +100,7 @@ set(src
 	clingo.cpp
 	constraint.cpp
 	dependency_graph.cpp
+	depth.cpp
 	enumerator.cpp
 	heuristics.cpp
 	logic_program.cpp

@@ -24,6 +24,7 @@
 #include <clasp/clasp_facade.h>
 #include <clasp/lookahead.h>
 #include <clasp/dependency_graph.h>
+#include <clasp/depth.h>
 #include <clasp/minimize_constraint.h>
 #include <clasp/unfounded_check.h>
 #include <clasp/parser.h>
@@ -75,7 +76,7 @@ struct ClaspConfig::Impl {
 		uint64 set;
 	};
 	typedef PodVector<ConfiguratorProxy>::type PPVec;
-	Impl()  { acycSet = 0; }
+	Impl()  { acycSet = 0; depthSet = 0; }
 	~Impl() { reset(); }
 	void reset();
 	void prepare(SharedContext& ctx);
@@ -84,6 +85,7 @@ struct ClaspConfig::Impl {
 	void unfreeze(SharedContext& ctx);
 	PPVec   pp;
 	uint64  acycSet;
+	uint64	depthSet;
 #if CLASP_HAS_THREADS
 	Clasp::mt::mutex mutex;
 #endif
@@ -95,6 +97,7 @@ void ClaspConfig::Impl::reset() {
 void ClaspConfig::Impl::prepare(SharedContext& ctx) {
 	if (ctx.concurrency() < 64) {
 		acycSet &= (bit_mask<uint64>(ctx.concurrency()) - 1);
+		depthSet &= (bit_mask<uint64>(ctx.concurrency()) - 1);
 	}
 	for (PPVec::iterator it = pp.begin(), end = pp.end(); it != end; ++it) {
 		it->prepare(ctx);
@@ -120,6 +123,13 @@ bool ClaspConfig::Impl::addPost(Solver& s, const SolverParams& opts) {
 		// protect access to acycSet
 		LOCKED() { addAcyc = !test_bit(acycSet, s.id()) && store_set_bit(acycSet, s.id()); }
 		if (addAcyc && !s.addPost(new AcyclicityCheck(s.sharedContext()->extGraph.get()))) {
+			return false;
+		}
+	}
+	if (s.sharedContext()->depthInfo.get()) {
+		bool addDepth = false;
+		LOCKED() { addDepth = !test_bit(depthSet, s.id()) && store_set_bit(depthSet, s.id()); }
+		if (addDepth && !s.addPost(new DepthPropagator(s.sharedContext()->extGraph.get(), s.sharedContext()->depthInfo.get()))) {
 			return false;
 		}
 	}
