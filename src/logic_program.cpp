@@ -212,6 +212,7 @@ struct LogicProgram::Aux {
 	DomRules  	dom;          // list of domain heuristic directives
 	AcycRules 	acyc;         // list of user-defined edges for acyclicity check
 	DepthRules	depth;
+	RootRules	root;         // list of user-defined depth roots (#root)
 	VarVec    	project;      // atoms in projection directives
 	VarVec    	external;     // atoms in external directives
 	IdSet     	skippedHeads; // heads of rules that have been removed during parsing
@@ -774,6 +775,15 @@ LogicProgram& LogicProgram::addDepthBinding(uint32 node, int depth, Atom_t atom,
 		DepthNode depthNode = { condId, node, static_cast<int32>(depth), atom };
 		auxData_->depth.push_back(depthNode);
 		resize(atom);
+	}
+	return *this;
+}
+
+LogicProgram& LogicProgram::addRootNode(uint32 node, Id_t condId) {
+	check_not_frozen();
+	if (condId != falseId) {
+		RootNode rootNode = { condId, node };
+		auxData_->root.push_back(rootNode);
 	}
 	return *this;
 }
@@ -1786,6 +1796,12 @@ void LogicProgram::addDepthConstraint() {
 		if (lit.var() != 0) { ctx.setFrozen(lit.var(), true); }
 	}
 	if (data->empty()) { delete data; return; }
+	RootRules& roots = auxData_->root;
+	for (RootRules::const_iterator it = roots.begin(); it != roots.end(); ++it) {
+		Literal cond = getLiteral(it->cond);
+		if (s.isFalse(cond)) { continue; }
+		data->addRoot(it->node, cond);
+	}
 	ctx.depthInfo = data;
 }
 #undef check_modular

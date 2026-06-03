@@ -20,11 +20,18 @@ class DepthBindings {
         int32 depth;
         Literal lit;
     };
+    struct Root {
+        uint32 node;
+        Literal lit;
+    };
     typedef PodVector<Binding>::type BindingVec;
+    typedef PodVector<Root>::type RootVec;
     DepthBindings () {};
     void add(uint32 node, int32 depth, Literal lit) { bindings.push_back(Binding{node, depth, lit}); }
+    void addRoot(uint32 node, Literal lit) { roots.push_back(Root{node, lit}); }
     bool empty() const { return bindings.empty(); }
     BindingVec bindings;
+    RootVec roots;
 };
 
 class DepthPropagator : public PostPropagator {
@@ -71,6 +78,7 @@ class DepthPropagator : public PostPropagator {
     U32Vec mark_;
     uint32 epoch_;
     uint32 nNodes_;
+    bool   useDeclared_;
 };
 } // namespace Clasp
 

@@ -377,6 +377,10 @@ public:
 		return addDepthBinding(node, depth, atom, newCondition(condition));
 	}
 	LogicProgram& addDepthBinding(uint32 node, int depth, Atom_t atom, Id_t cond);
+	LogicProgram& addRootNode(uint32 node, const Potassco::LitSpan& condition) {
+		return addRootNode(node, newCondition(condition));
+	}
+	LogicProgram& addRootNode(uint32 node, Id_t cond);
 	//@}
 
 	/*!
@@ -532,6 +536,7 @@ private:
 	struct DlpTr;
 	struct AcycArc { Id_t cond; uint32 node[2]; };
 	struct DepthNode {Id_t cond; uint32 node; int32 depth; Atom_t atom; };
+	struct RootNode {Id_t cond; uint32 node; };
 	struct DomRule { uint32 atom : 29; uint32 type : 3; Id_t cond; int16 bias; uint16 prio; };
 	struct Eq      { Atom_t var; Literal lit; };
 	struct TFilter { bool operator()(const Potassco::TheoryAtom& atom) const; LogicProgram* self; };
@@ -543,6 +548,7 @@ private:
 	typedef PodVector<DomRule>::type        DomRules;
 	typedef PodVector<AcycArc>::type        AcycRules;
 	typedef PodVector<DepthNode>::type		DepthRules;
+	typedef PodVector<RootNode>::type		RootRules;
 	typedef PodVector<RuleBuilder*>::type   RuleList;
 	typedef PodVector<Min*>::type           MinList;
 	typedef PodVector<uint8>::type          SccMap;
