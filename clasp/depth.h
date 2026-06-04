@@ -62,8 +62,6 @@ class DepthPropagator : public PostPropagator {
     void reason(Solver& s, Literal p, LitVec& out);
     bool propagateDepth(Solver &s);
     void computeDist(Solver& s, U32Vec& dist, bool trueOnly);
-    void buildAllEdgesReason(Solver& s, LitVec& out);
-    void appendTruePath(Solver &s, uint32 node, LitVec& out);
     void setReason(Literal p, const LitVec& reason);
     void updateAssignedEdgesFromTrail(Solver& s);
     static const uint32 INF = UINT32_MAX;
@@ -98,7 +96,6 @@ class DepthPropagator : public PostPropagator {
     uint32 lastTrailPos_;        // Last trail position processed
 
     // Reason construction
-    LitVec reason_;              // Working buffer for reason construction
     LitVec cachedEdgeReason_;    // Cached all-edges reason (reused across forces)
     U32Vec mark_;                // Marks to avoid duplicate literals in reasons
     uint32 epoch_;               // Current epoch for marking

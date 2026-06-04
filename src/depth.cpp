@@ -210,36 +210,6 @@ void DepthPropagator::updateAssignedEdgesFromTrail(Solver& s) {
 	lastTrailPos_ = trailSize;
 }
 
-void DepthPropagator::buildAllEdgesReason(Solver& s, LitVec& out) {
-	// Add all assigned edge literals to reason using the cached list
-	// Still need marking to avoid duplicates with path literals
-	for (LitVec::const_iterator it = cachedEdgeReason_.begin(), end = cachedEdgeReason_.end(); it != end; ++it) {
-		Literal edgeLit = *it;
-		Var v = edgeLit.var();
-		if (mark_[v] != epoch_) {
-			mark_[v] = epoch_;
-			out.push_back(edgeLit);
-		}
-	}
-	static_cast<void>(s);
-}
-
-void DepthPropagator::appendTruePath(Solver& s, uint32 node, LitVec& out) {
-	// Walk back from node to root along parent pointers, adding edge literals
-	uint32 n = node;
-	while (graph_->validNode(n) && parent_[n] != n) {
-		Literal e = parentLit_[n];
-		Var v = e.var();
-		// mark_ is pre-sized in init(), no need to check resize here
-		if (mark_[v] != epoch_) {
-			mark_[v] = epoch_;
-			out.push_back(e);
-		}
-		n = parent_[n];
-	}
-	static_cast<void>(s);
-}
-
 void DepthPropagator::setReason(Literal p, const LitVec& reason) {
 	if (!nogoods_) { nogoods_ = new ReasonStore(); }
 	nogoods_->setReason(p, reason);
@@ -320,7 +290,6 @@ bool DepthPropagator::propagateDepth(Solver& s) {
 			int32 val = it->depth;
 			Literal lit = it->lit;
 			Literal force;
-			bool needReason = false;
 
 			if (allEdgesAssigned) {
 				// All edges assigned: force exact value
@@ -328,11 +297,9 @@ bool DepthPropagator::propagateDepth(Solver& s) {
 				if (val == static_cast<int32>(actualDepth)) {
 					force = lit;
 					stats_.forcedCompletePositive++;
-					needReason = true;
 				} else {
 					force = ~lit;
 					stats_.forcedCompleteNegative++;
-					needReason = true;
 				}
 			} else if (reachable && dLo == dHi) {
 				// Depth is CERTAIN (locked in): force exact value even with partial assignment
@@ -340,22 +307,18 @@ bool DepthPropagator::propagateDepth(Solver& s) {
 				if (val == static_cast<int32>(dHi)) {
 					force = lit;
 					stats_.forcedCertainPositive++;
-					needReason = true;
 				} else {
 					force = ~lit;
 					stats_.forcedCertainNegative++;
-					needReason = true;
 				}
 			} else {
 				// Depth uncertain: only force bounds
 				if (reachable && dLo != INF && val < static_cast<int32>(dLo)) {
 					force = ~lit;  // Too small
 					stats_.forcedBoundNegative++;
-					needReason = true;
 				} else if (reachable && dHi != INF && val > static_cast<int32>(dHi)) {
 					force = ~lit;  // Too large
 					stats_.forcedBoundNegative++;
-					needReason = true;
 				} else {
 					continue;  // Can't determine yet
 				}
@@ -365,9 +328,7 @@ bool DepthPropagator::propagateDepth(Solver& s) {
 
 			// Build reason clause using cached all-edges reason
 			auto startReason = std::chrono::high_resolution_clock::now();
-			if (needReason) {
-				setReason(force, cachedEdgeReason_);
-			}
+			setReason(force, cachedEdgeReason_);
 			auto endReason = std::chrono::high_resolution_clock::now();
 			stats_.totalReasonBuildTimeMs += std::chrono::duration<double, std::milli>(endReason - startReason).count();
 
@@ -421,8 +382,7 @@ bool DepthPropagator::propagateFixpoint(Solver& s, PostPropagator*) {
 	return result;
 }
 
-bool DepthPropagator::valid(Solver& s) {
-	static_cast<void>(s);
+bool DepthPropagator::valid(Solver&) {
 	return true;
 }
 
@@ -436,15 +396,14 @@ bool DepthPropagator::isModel(Solver& s) {
 }
 
 void DepthPropagator::reason(Solver&, Literal p, LitVec& out) {
-	if (nogoods_) { nogoods_->getReason(p, out); }
+	if (nogoods_) {
+		nogoods_->getReason(p, out);
+	}
 }
 
-Constraint::PropResult DepthPropagator::propagate(Solver& s, Literal p, uint32& data) {
+Constraint::PropResult DepthPropagator::propagate(Solver&, Literal, uint32&) {
 	// Watch callback: mark that edge assignments changed
 	edgesDirty_ = true;
-	static_cast<void>(s);
-	static_cast<void>(p);
-	static_cast<void>(data);
 	return PropResult(true, true);  // ok=true, keepWatch=true
 }
 
